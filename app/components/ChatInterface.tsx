@@ -1,0 +1,137 @@
+'use client';
+
+import React, { useState, useRef, useEffect } from "react";
+import { Send } from "lucide-react";
+import ChatMessage from "./ChatMessage";
+import TypingIndicator from "./TypingIndicator";
+import { cn } from "../lib/utils";
+import { connectToChatStream } from "../api/chatstream";
+
+interface ChatInterfaceProps {
+  className?: string;
+}
+
+const ChatInterface = ({ className }: ChatInterfaceProps) => {
+  const [messages, setMessages] = useState<Array<{ content: string; isUser: boolean }>>([
+    { content: "안녕하세요! 무엇을 도와드릴까요?", isUser: false },
+  ]);
+  const [inputValue, setInputValue] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const streamRef = useRef<EventSource | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Scroll to bottom of messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+  
+  // Focus input on mount
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const stream = connectToChatStream({
+      prompt: "AI야 안녕",
+      userId: "user123",
+      onMessage: (data) => {
+        console.log("받은 응답:", data);
+      },
+      onError: (err) => {
+        console.warn("연결 중 오류 발생:", err);
+      },
+    });
+
+    streamRef.current = stream;
+
+    return () => {
+      // 컴포넌트 unmount 또는 닫힐 때 cleanup
+      stream.close();
+    };
+  }, []);
+
+  const handleSendMessage = () => {
+    if (inputValue.trim() === "") return;
+    
+    // Add user message
+    setMessages([...messages, { content: inputValue, isUser: true }]);
+    setInputValue("");
+    
+    // Show typing indicator
+    setIsTyping(true);
+    
+    // Simulate AI response (this will be replaced with your API)
+    setTimeout(() => {
+      setIsTyping(false);
+      setMessages(prev => [
+        ...prev, 
+        { 
+          content: "죄송합니다만, 아직 API가 연결되지 않았습니다. 곧 실제 AI 응답으로 대체될 예정입니다.", 
+          isUser: false 
+        }
+      ]);
+    }, 1500);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  return (
+    <div className={cn("flex flex-col h-[600px] w-full max-w-md rounded-xl overflow-hidden shadow-lg bg-white", className)}>
+      {/* Chat header */}
+      <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+        <h2 className="font-semibold">AI 챗봇</h2>
+        <div className="text-xs opacity-80">실시간 대화형 도우미</div>
+      </div>
+      
+      {/* Messages container */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        {messages.map((message, index) => (
+          <ChatMessage 
+            key={index} 
+            content={message.content} 
+            isUser={message.isUser} 
+          />
+        ))}
+        
+        {isTyping && <TypingIndicator />}
+        
+        <div ref={messagesEndRef} />
+      </div>
+      
+      {/* Input area */}
+      <div className="p-4 bg-white">
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="메시지를 입력하세요..."
+            className="flex-1 py-2 px-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={inputValue.trim() === ""}
+            className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send size={20} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChatInterface;
