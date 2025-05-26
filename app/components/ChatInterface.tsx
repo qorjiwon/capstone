@@ -5,7 +5,7 @@ import { Send } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import TypingIndicator from "./TypingIndicator";
 import { cn } from "../lib/utils";
-import { connectToChatStream } from "../api/chatstream";
+import { connectToChatStream, login } from "../api/chatstream";
 
 interface ChatInterfaceProps {
   className?: string;
@@ -21,11 +21,23 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<EventSource | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
   
   // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // 기본 로그인 (임시 하드코딩)
+        await login("testid1", "testpw1");
+      } catch (e) {
+        console.error("로그인 실패", e);
+      }
+    })();
+  }, []);  
 
   useEffect(() => {
     scrollToBottom();
@@ -58,25 +70,29 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
 
   const handleSendMessage = () => {
     if (inputValue.trim() === "") return;
-    
-    // Add user message
-    setMessages([...messages, { content: inputValue, isUser: true }]);
+  
+    const userMessage = { content: inputValue, isUser: true };
+    setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
-    
-    // Show typing indicator
     setIsTyping(true);
-    
-    // Simulate AI response (this will be replaced with your API)
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages(prev => [
-        ...prev, 
-        { 
-          content: "죄송합니다만, 아직 API가 연결되지 않았습니다. 곧 실제 AI 응답으로 대체될 예정입니다.", 
-          isUser: false 
-        }
-      ]);
-    }, 1500);
+  
+    const access = localStorage.getItem("access") ?? "";
+  
+    const stream = connectToChatStream({
+      prompt: userMessage.content,
+      userId: access,
+      onMessage: (data) => {
+        setIsTyping(false);
+        setMessages((prev) => [...prev, { content: data, isUser: false }]);
+      },
+      onError: (error) => {
+        console.error("스트리밍 에러:", error);
+        setIsTyping(false);
+        setMessages((prev) => [...prev, { content: "오류가 발생했습니다.", isUser: false }]);
+      },
+    });
+  
+    streamRef.current = stream;
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
