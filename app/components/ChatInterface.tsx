@@ -5,7 +5,8 @@ import { Send } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import TypingIndicator from "./TypingIndicator";
 import { cn } from "../lib/utils";
-import { connectToChatStream, login } from "../api/chatstream";
+import { sendBasicChat, login } from "../api/chatstream";
+import SatisfactionSurvey from "./SatisfactionSurvey";
 
 interface ChatInterfaceProps {
   className?: string;
@@ -17,26 +18,29 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showSurvey, setShowSurvey] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const streamRef = useRef<EventSource | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // 자동 로그인
   useEffect(() => {
     (async () => {
       try {
         await login("testid1", "testpw1");
+        setIsLoggedIn(true);
+        console.log("로그인 성공!");
       } catch (e) {
         console.error("로그인 실패", e);
+        setIsLoggedIn(false);
       }
     })();
-  }, []);  
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -46,50 +50,32 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
     inputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    const stream = connectToChatStream({
-      prompt: "AI야 안녕",
-      userId: "user123",
-      onMessage: (data) => {
-        console.log("받은 응답:", data);
-      },
-      onError: (err) => {
-        console.warn("연결 중 오류 발생:", err);
-      },
-    });
-
-    streamRef.current = stream;
-
-    return () => {
-      stream.close();
-    };
-  }, []);
-
-  const handleSendMessage = () => {
-    if (inputValue.trim() === "") return;
+  const handleSendMessage = async () => {
+    if (inputValue.trim() === "" || !isLoggedIn) return;
   
     const userMessage = { content: inputValue, isUser: true };
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue("");
     setIsTyping(true);
-  
-    const access = localStorage.getItem("access") ?? "";
-  
-    const stream = connectToChatStream({
-      prompt: userMessage.content,
-      userId: access,
-      onMessage: (data) => {
-        setIsTyping(false);
-        setMessages((prev) => [...prev, { content: data, isUser: false }]);
-      },
-      onError: (error) => {
-        console.error("스트리밍 에러:", error);
-        setIsTyping(false);
-        setMessages((prev) => [...prev, { content: "오류가 발생했습니다.", isUser: false }]);
-      },
-    });
-  
-    streamRef.current = stream;
+
+    try {
+      // sendBasicChat 함수 호출 (Promise 기반)
+      const response = await sendBasicChat(currentInput);
+      
+      // AI 응답을 메시지에 추가
+      setMessages((prev) => [...prev, { content: response.answer, isUser: false }]);
+      
+    } catch (error) {
+      console.error("채팅 요청 실패:", error);
+      // 에러 메시지를 채팅에 표시
+      setMessages((prev) => [...prev, { 
+        content: "죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.", 
+        isUser: false 
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -100,11 +86,21 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
   };
 
   return (
+    <>
     <div className={cn("flex flex-col h-[600px] w-full max-w-md rounded-xl overflow-hidden shadow-lg bg-white", className)}>
       {/* Chat header */}
-      <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-        <h2 className="font-semibold">AI 챗봇</h2>
-        <div className="text-xs opacity-80">실시간 대화형 도우미</div>
+      <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white flex justify-between items-center">
+        <div>
+          <h2 className="font-semibold">AI 챗봇</h2>
+          <div className="text-xs opacity-80">실시간 대화형 도우미</div>
+        </div>
+        <button
+          // onClick={handleClose}
+          className="w-6 h-6 text-white hover:bg-blue-600 rounded-full flex items-center justify-center hover:bg-accent hover:text-accent-foreground"
+          aria-label="닫기"
+        >
+          <span className="text-2xl">×</span>
+        </button>
       </div>
       
       {/* Messages container */}
@@ -144,6 +140,13 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
         </div>
       </div>
     </div>
+    
+      {showSurvey && (
+        <SatisfactionSurvey sessionId={""} onClose={function (): void {
+          throw new Error("Function not implemented.");
+        } }  />
+      )}
+    </>
   );
 };
 
