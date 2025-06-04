@@ -1,9 +1,8 @@
-// chatStream.ts
 import { ChatStreamOptions } from "./type";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-// 로그인 + 세션 생성
 export async function login(username: string, password: string) {
-  const res = await fetch("http://52.79.85.132:8080/api/login", {
+  const res = await fetch(`${API_BASE_URL}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
@@ -13,9 +12,8 @@ export async function login(username: string, password: string) {
   const userId = data.response.userId;
   const accessToken = res.headers.get("access");
 
-
   const sessionRes = await fetch(
-    `http://52.79.85.132:8080/api/chat/session?userId=${userId}`,
+    `${API_BASE_URL}/chat/session?userId=${userId}`,
     {
       method: "POST",
       headers: {
@@ -32,7 +30,6 @@ export async function login(username: string, password: string) {
 }
 
 
-// 챗봇 스트리밍 연결
 export function connectToChatStream({
   prompt,
   onMessage,
@@ -41,11 +38,10 @@ export function connectToChatStream({
   const encodedPrompt = encodeURIComponent(prompt);
   const encodedAccess = encodeURIComponent(accessToken ?? "");
 
-  const url = `http://52.79.85.132:8080/api/chat/stream?prompt=${encodedPrompt}&access=${encodedAccess}`;
+  const url = `${API_BASE_URL}/chat/stream?prompt=${encodedPrompt}&access=${encodedAccess}`;
   const eventSource = new EventSource(url);
 
   eventSource.onmessage = (event: MessageEvent) => {
-    // const cleaned = event.data.replace(/^"|"$/g, '');
     onMessage(event.data);
   };
 

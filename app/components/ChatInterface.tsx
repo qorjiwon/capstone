@@ -31,7 +31,6 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
   useEffect(() => {
     (async () => {
       try {
-        // 기본 로그인 (임시 하드코딩)
         await login("testid1", "testpw1");
       } catch (e) {
         console.error("로그인 실패", e);
@@ -43,7 +42,6 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
     scrollToBottom();
   }, [messages]);
   
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -63,7 +61,6 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
     streamRef.current = stream;
 
     return () => {
-      // 컴포넌트 unmount 또는 닫힐 때 cleanup
       stream.close();
     };
   }, []);
