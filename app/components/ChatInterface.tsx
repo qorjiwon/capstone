@@ -5,7 +5,7 @@ import { Send, X } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import TypingIndicator from "./TypingIndicator";
 import { cn } from "../lib/utils";
-import { sendBasicChat, login } from "../api/chatstream";
+import { streamChatResponse, login } from "../api/chatstream";
 
 interface ChatInterfaceProps {
   className?: string;
@@ -18,7 +18,9 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showSurvey, setShowSurvey] = useState(false);
+  const [, setShowSurvey] = useState(false);
+
+  const messagesCountRef = useRef(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -49,32 +51,53 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
     inputRef.current?.focus();
   }, []);
 
-  const handleSendMessage = async () => {
-    if (inputValue.trim() === "" || !isLoggedIn) return;
+  const handleSendMessage = () => {
+    if (inputValue.trim() === '' || !isLoggedIn) return;
 
-    const userMessage = { content: inputValue, isUser: true };
-    setMessages((prev) => [...prev, userMessage]);
-    const currentInput = inputValue;
-    setInputValue("");
+    setMessages(prev => {
+      messagesCountRef.current = prev.length;
+      return [...prev, { content: inputValue, isUser: true }];
+    });
+
+    // 2) AI 응답 자리 표시자 추가
+    setMessages(prev => {
+      messagesCountRef.current = prev.length;
+      return [...prev, { content: '', isUser: false }];
+    });
+
+    const placeholderIndex = messagesCountRef.current;
+    const question = inputValue;
+    setInputValue('');
     setIsTyping(true);
 
-    try {
-      // sendBasicChat 함수 호출 (Promise 기반)
-      const response = await sendBasicChat(currentInput);
-
-      // AI 응답을 메시지에 추가
-      setMessages((prev) => [...prev, { content: response.answer, isUser: false }]);
-
-    } catch (error) {
-      console.error("채팅 요청 실패:", error);
-      // 에러 메시지를 채팅에 표시
-      setMessages((prev) => [...prev, {
-        content: "죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.",
-        isUser: false
-      }]);
-    } finally {
-      setIsTyping(false);
-    }
+    streamChatResponse(
+      question,
+      (msg) => {
+        try {
+          const { answer } = JSON.parse(msg) as { answer: string };
+          setMessages(prev =>
+            prev.map((m, idx) =>
+              idx === placeholderIndex
+                ? { ...m, content: m.content + answer }
+                : m
+            )
+          );
+        } catch (e) {
+          console.warn('파싱 에러:', e);
+        }
+      },
+      (err) => {
+        console.error('스트리밍 오류:', err);
+        setMessages(prev => [
+          ...prev,
+          { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false }
+        ]);
+        setIsTyping(false);
+      },
+      () => {
+        setIsTyping(false);
+      }
+    );
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
