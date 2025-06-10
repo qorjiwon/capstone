@@ -2,7 +2,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export async function login(username: string, password: string) {
   try {
-    const res = await fetch(`${API_BASE_URL}api/login`, {
+    const res = await fetch(`${API_BASE_URL}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -22,7 +22,7 @@ export async function login(username: string, password: string) {
     }
 
     const sessionRes = await fetch(
-      `${API_BASE_URL}api/chat/session?userId=${userId}`,
+      `${API_BASE_URL}/chat/session?userId=${userId}`,
       {
         method: "POST",
         headers: {
@@ -54,7 +54,7 @@ export async function login(username: string, password: string) {
 
 export async function createChatSession(userId: string): Promise<string> {
   const res = await fetch(
-    `${API_BASE_URL}api/chat/session?userId=${encodeURIComponent(userId)}`,
+    `${API_BASE_URL}/chat/session?userId=${encodeURIComponent(userId)}`,
     { method: 'POST' }
   );
 
@@ -86,7 +86,7 @@ export function streamChatResponse(
   if (!sessionId) throw new Error('세션 ID가 없습니다. 먼저 세션을 생성해주세요.');
   if (!accessToken) throw new Error('액세스 토큰이 없습니다. 로그인 후 다시 시도해주세요.');
 
-  fetch(`${API_BASE_URL}api/chat/stream?sessionId=${encodeURIComponent(sessionId)}`, {
+  fetch(`${API_BASE_URL}/chat/stream?sessionId=${encodeURIComponent(sessionId)}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
