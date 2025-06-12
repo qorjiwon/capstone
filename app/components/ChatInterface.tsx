@@ -20,8 +20,6 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [, setShowSurvey] = useState(false);
 
-  const messagesCountRef = useRef(0);
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -51,95 +49,41 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
     inputRef.current?.focus();
   }, []);
 
-  // const handleSendMessage = () => {
-  //   if (inputValue.trim() === '' || !isLoggedIn) return;
-
-  //   setMessages(prev => {
-  //     messagesCountRef.current = prev.length;
-  //     return [...prev, { content: inputValue, isUser: true }];
-  //   });
-
-  //   // 2) AI 응답 자리 표시자 추가
-  //   setMessages(prev => {
-  //     messagesCountRef.current = prev.length;
-  //     return [...prev, { content: '', isUser: false }];
-  //   });
-
-  //   const placeholderIndex = messagesCountRef.current;
-  //   const question = inputValue;
-  //   setInputValue('');
-  //   setIsTyping(true);
-
-  //   streamChatResponse(
-  //     question,
-  //     (chunk: string) => {
-  //         setMessages(prev =>
-  //           prev.map((m, idx) =>
-  //             idx === placeholderIndex
-  //               ? { ...m, content: m.content + answer }
-  //               : m
-  //           )
-  //         );
-  //         console.log('AI 응답 chunk:', chunk);
-  //     },
-  //     (err) => {
-  //       console.error('스트리밍 오류:', err);
-  //       setMessages(prev => [
-  //         ...prev,
-  //         { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false }
-  //       ]);
-  //       setIsTyping(false);
-  //     },
-  //     () => {
-  //       setIsTyping(false);
-  //     }
-  //   );
-  // };
-
   const handleSendMessage = () => {
-  if (inputValue.trim() === '' || !isLoggedIn) return;
+    if (inputValue.trim() === '' || !isLoggedIn) return;
 
-  // 1) Prepare the two new messages
-  const userMsg = { content: inputValue, isUser: true };
-  const placeholderMsg = { content: '', isUser: false };
+    const userMsg = { content: inputValue, isUser: true };
+    const placeholderMsg = { content: '', isUser: false };
 
-  // 2) Build the new messages array
-  const newMessages = [...messages, userMsg, placeholderMsg];
+    const newMessages = [...messages, userMsg, placeholderMsg];
 
-  // 3) Update state once and capture placeholder index
-  setMessages(newMessages);
-  const placeholderIndex = newMessages.length - 1;
+    setMessages(newMessages);
+    const placeholderIndex = newMessages.length - 1;
 
-  // 4) Reset input & start typing indicator
-  setInputValue('');
-  setIsTyping(true);
+    setInputValue('');
+    setIsTyping(true);
 
-  // 5) Stream in chunks
-  streamChatResponse(
-    inputValue,
-    (chunk) => {
-      // append each chunk into the placeholder only
-      setMessages(prev =>
-        prev.map((m, idx) =>
-          idx === placeholderIndex
-            ? { ...m, content: m.content + chunk }
-            : m
-        )
-      );
-    },
-    (err) => {
-      console.error('스트리밍 오류:', err);
-      setMessages(prev => [
-        ...prev,
-        { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false }
-      ]);
-      setIsTyping(false);
-    },
-    () => {
-      setIsTyping(false);
-    }
-  );
-};
+    streamChatResponse(
+      inputValue,
+      (chunk: string) => {
+        setMessages(prev =>
+          prev.map((m, idx) =>
+            idx === placeholderIndex
+              ? { ...m, content: m.content + chunk }
+              : m
+          )
+        );
+      },
+      (err) => {
+        console.error('스트리밍 오류:', err);
+        setMessages(prev => [
+          ...prev,
+          { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false }
+        ]);
+        setIsTyping(false);
+      }
+    );
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -166,15 +110,21 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
 
       {/* Messages container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        {messages.map((message, index) => (
-          <ChatMessage
-            key={index}
-            content={message.content}
-            isUser={message.isUser}
-          />
-        ))}
 
-        {isTyping && <TypingIndicator />}
+        {messages.map((message, index) => {
+          if (!message.isUser && message.content === '') {
+            // AI placeholder 메시지이고 content가 아직 비어있으면 typing 인디케이터
+            return <TypingIndicator key={index} />;
+          }
+          // 그 외 (유저 메시지, 혹은 AI 실제 응답 메시지)
+          return (
+            <ChatMessage
+              key={index}
+              content={message.content}
+              isUser={message.isUser}
+            />
+          );
+        })}
 
         <div ref={messagesEndRef} />
       </div>
