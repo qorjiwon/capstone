@@ -93,9 +93,7 @@ export function streamChatResponse(
       'Accept': 'text/event-stream',
       'Authorization': `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({
-      chatUserRequest: { question }
-    })
+    body: JSON.stringify({ question })
   })
     .then(res => {
       if (!res.ok) throw new Error(`스트리밍 요청 실패: ${res.statusText}`);
@@ -113,7 +111,7 @@ export function streamChatResponse(
           buffer += decoder.decode(value, { stream: true });
           // SSE 형식(data: ...) 파싱
           const lines = buffer.split('\n');
-          buffer = lines.pop()!;  // 마지막 줄은 불완전할 수 있으므로 다음 청크로 남겨둠
+          buffer = lines.pop()!;
 
           for (const line of lines) {
             if (line.startsWith('data:')) {
@@ -123,13 +121,17 @@ export function streamChatResponse(
                 onComplete && onComplete();
                 return;
               }
+              let chunk: { answer?: string;[key: string]: unknown } | string;
               try {
-                const json = JSON.parse(payload);
-                // 예: { timeout: 0 } 또는 { chatId, answer, createdAt } 구조
-                onMessage(JSON.stringify(json));
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              } catch (e) {
-                console.warn('파싱 실패:', payload);
+                chunk = JSON.parse(payload);
+              } catch {
+                // JSON 이 아니면 그대로 텍스트로
+                chunk = payload;
+              }
+              if (typeof chunk === 'object' && 'answer' in chunk) {
+                onMessage(chunk.answer!);
+              } else if (typeof chunk === 'string') {
+                onMessage(chunk);
               }
             }
           }

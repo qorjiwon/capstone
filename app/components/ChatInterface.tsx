@@ -51,54 +51,95 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
     inputRef.current?.focus();
   }, []);
 
+  // const handleSendMessage = () => {
+  //   if (inputValue.trim() === '' || !isLoggedIn) return;
+
+  //   setMessages(prev => {
+  //     messagesCountRef.current = prev.length;
+  //     return [...prev, { content: inputValue, isUser: true }];
+  //   });
+
+  //   // 2) AI 응답 자리 표시자 추가
+  //   setMessages(prev => {
+  //     messagesCountRef.current = prev.length;
+  //     return [...prev, { content: '', isUser: false }];
+  //   });
+
+  //   const placeholderIndex = messagesCountRef.current;
+  //   const question = inputValue;
+  //   setInputValue('');
+  //   setIsTyping(true);
+
+  //   streamChatResponse(
+  //     question,
+  //     (chunk: string) => {
+  //         setMessages(prev =>
+  //           prev.map((m, idx) =>
+  //             idx === placeholderIndex
+  //               ? { ...m, content: m.content + answer }
+  //               : m
+  //           )
+  //         );
+  //         console.log('AI 응답 chunk:', chunk);
+  //     },
+  //     (err) => {
+  //       console.error('스트리밍 오류:', err);
+  //       setMessages(prev => [
+  //         ...prev,
+  //         { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false }
+  //       ]);
+  //       setIsTyping(false);
+  //     },
+  //     () => {
+  //       setIsTyping(false);
+  //     }
+  //   );
+  // };
+
   const handleSendMessage = () => {
-    if (inputValue.trim() === '' || !isLoggedIn) return;
+  if (inputValue.trim() === '' || !isLoggedIn) return;
 
-    setMessages(prev => {
-      messagesCountRef.current = prev.length;
-      return [...prev, { content: inputValue, isUser: true }];
-    });
+  // 1) Prepare the two new messages
+  const userMsg = { content: inputValue, isUser: true };
+  const placeholderMsg = { content: '', isUser: false };
 
-    // 2) AI 응답 자리 표시자 추가
-    setMessages(prev => {
-      messagesCountRef.current = prev.length;
-      return [...prev, { content: '', isUser: false }];
-    });
+  // 2) Build the new messages array
+  const newMessages = [...messages, userMsg, placeholderMsg];
 
-    const placeholderIndex = messagesCountRef.current;
-    const question = inputValue;
-    setInputValue('');
-    setIsTyping(true);
+  // 3) Update state once and capture placeholder index
+  setMessages(newMessages);
+  const placeholderIndex = newMessages.length - 1;
 
-    streamChatResponse(
-      question,
-      (msg) => {
-        try {
-          const { answer } = JSON.parse(msg) as { answer: string };
-          setMessages(prev =>
-            prev.map((m, idx) =>
-              idx === placeholderIndex
-                ? { ...m, content: m.content + answer }
-                : m
-            )
-          );
-        } catch (e) {
-          console.warn('파싱 에러:', e);
-        }
-      },
-      (err) => {
-        console.error('스트리밍 오류:', err);
-        setMessages(prev => [
-          ...prev,
-          { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false }
-        ]);
-        setIsTyping(false);
-      },
-      () => {
-        setIsTyping(false);
-      }
-    );
-  };
+  // 4) Reset input & start typing indicator
+  setInputValue('');
+  setIsTyping(true);
+
+  // 5) Stream in chunks
+  streamChatResponse(
+    inputValue,
+    (chunk) => {
+      // append each chunk into the placeholder only
+      setMessages(prev =>
+        prev.map((m, idx) =>
+          idx === placeholderIndex
+            ? { ...m, content: m.content + chunk }
+            : m
+        )
+      );
+    },
+    (err) => {
+      console.error('스트리밍 오류:', err);
+      setMessages(prev => [
+        ...prev,
+        { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false }
+      ]);
+      setIsTyping(false);
+    },
+    () => {
+      setIsTyping(false);
+    }
+  );
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
