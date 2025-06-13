@@ -21,7 +21,7 @@ export default function Home() {
       </button>
 
       {isChatOpen && (
-        <div className="fixed bottom-25 right-6 w-96 max-w-full shadow-xl rounded-xl bg-white z-50">
+        <div className="fixed bottom-25 right-6 w-98 max-w-full shadow-xl rounded-xl bg-white z-50">
           <ChatInterface />
         </div>
       )}

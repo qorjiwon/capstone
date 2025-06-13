@@ -7,13 +7,19 @@ import TypingIndicator from "./TypingIndicator";
 import { cn } from "../lib/utils";
 import { streamChatResponse, login } from "../api/chatstream";
 
-interface ChatInterfaceProps {
-  className?: string;
+interface Message {
+  content: string;
+  isUser: boolean;
+  timestamp: string;
 }
 
-const ChatInterface = ({ className }: ChatInterfaceProps) => {
-  const [messages, setMessages] = useState<Array<{ content: string; isUser: boolean }>>([
-    { content: "안녕하세요! 무엇을 도와드릴까요?", isUser: false },
+const ChatInterface = ({ className }: { className?: string }) => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      content: "안녕하세요! 무엇을 도와드릴까요?",
+      isUser: false,
+      timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    },
   ]);
   const [inputValue, setInputValue] = useState("");
   const [, setIsTyping] = useState(false);
@@ -52,8 +58,9 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
   const handleSendMessage = () => {
     if (inputValue.trim() === '' || !isLoggedIn) return;
 
-    const userMsg = { content: inputValue, isUser: true };
-    const placeholderMsg = { content: '', isUser: false };
+    const now = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const userMsg = { content: inputValue, isUser: true, timestamp: now };
+    const placeholderMsg = { content: '', isUser: false, timestamp: now };
 
     const newMessages = [...messages, userMsg, placeholderMsg];
 
@@ -78,7 +85,7 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
         console.error('스트리밍 오류:', err);
         setMessages(prev => [
           ...prev,
-          { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false }
+          { content: '죄송합니다. 응답을 가져오는 중 오류가 발생했습니다.', isUser: false, timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) }
         ]);
         setIsTyping(false);
       }
@@ -109,7 +116,7 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
       </div>
 
       {/* Messages container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-3 space-y-4 bg-gray-50">
 
         {messages.map((message, index) => {
           if (!message.isUser && message.content === '') {
@@ -122,6 +129,7 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
               key={index}
               content={message.content}
               isUser={message.isUser}
+              timestamp={message.timestamp}
             />
           );
         })}
