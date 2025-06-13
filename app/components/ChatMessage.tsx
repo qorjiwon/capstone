@@ -10,6 +10,7 @@ interface ChatMessageProps {
 }
 
 const ChatMessage = ({ content, isUser, timestamp }: ChatMessageProps) => {
+  console.log(content);
   return (
     <div className={cn(
       "flex items-end gap-2",

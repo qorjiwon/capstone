@@ -49,6 +49,8 @@ export function streamChatResponse(
       const decoder = new TextDecoder();
       let buffer = '';
       let stopped = false;
+      let emptyCount = 0; // 연속 빈 data: 카운트
+      let isFirstChunk = true; // 첫 청크 여부 체크
 
       function read() {
         reader.read().then(({ done, value }) => {
@@ -62,20 +64,51 @@ export function streamChatResponse(
 
           for (const line of lines) {
             if (!line.startsWith('data:')) continue;
-            const raw = line.substring(5);       // data: 이후부터 그대로
+
+            // 'data:' 뒤의 모든 문자를 그대로 가져오며, 공백도 포함
+            const raw = line.slice('data:'.length);
+
+            // 빈 데이터는 줄바꿈으로 처리
+            let chunk: string;
+            // raw가 '-'로 시작하면 항상 줄바꿈 추가
+            if (raw.startsWith('-')) {
+              chunk = '\n' + raw;
+              emptyCount = 0;
+            }
+            // raw가 숫자 하나로만 이루어졌으면 줄바꿈 추가
+            else if (/^[0-9]$/.test(raw)) {
+              chunk = '\n' + raw;
+              emptyCount = 0;
+            } else if (raw === '') {
+              chunk = '\n';
+            } else {
+              // 빈 데이터 두 번 연속 후에는 모든 다음 청크에 줄바꿈 프리픽스
+              if (emptyCount >= 2) {
+                chunk = '\n' + raw;
+                emptyCount = 0;
+              } else {
+                try {
+                  const parsed = JSON.parse(raw);
+                  chunk = parsed.answer ?? raw;
+                } catch {
+                  chunk = raw;
+                }
+              }
+            }
+            if (isFirstChunk) {
+              if (chunk.startsWith('\n')) {
+                chunk = chunk.slice(1);
+              }
+              isFirstChunk = false;
+            }
+
             if (raw === '[DONE]') {
               stopped = true;
               onComplete?.();
               reader.cancel();
               return;
             }
-            let chunk: string;
-            try {
-              const parsed = JSON.parse(raw);
-              chunk = parsed.answer ?? raw;
-            } catch {
-              chunk = raw;
-            }
+
             onMessage(chunk);                    // ← React 상태 업데이트는 여기서 하지 않음
           }
           read();
