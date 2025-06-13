@@ -100,10 +100,11 @@ export function streamChatResponse(
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let stopped = false;
 
       function read() {
         reader.read().then(({ done, value }) => {
-          if (done) {
+          if (done || stopped) {
             onComplete?.();
             return;
           }
@@ -115,7 +116,9 @@ export function streamChatResponse(
             if (!line.startsWith('data:')) continue;
             const raw = line.substring(5);       // data: 이후부터 그대로
             if (raw === '[DONE]') {
+              stopped = true;
               onComplete?.();
+              reader.cancel();
               return;
             }
             let chunk: string;
