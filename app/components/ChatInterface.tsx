@@ -16,7 +16,7 @@ const ChatInterface = ({ className }: ChatInterfaceProps) => {
     { content: "안녕하세요! 무엇을 도와드릴까요?", isUser: false },
   ]);
   const [inputValue, setInputValue] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [, setIsTyping] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [, setShowSurvey] = useState(false);
 

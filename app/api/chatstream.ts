@@ -74,78 +74,64 @@ export async function createChatSession(userId: string): Promise<string> {
 }
 
 
+// api/chatstream.ts
 export function streamChatResponse(
   question: string,
-  onMessage: (msg: string) => void,
+  onMessage: (chunk: string) => void,      // ← 변경: setMessages → onMessage
   onError?: (err: unknown) => void,
   onComplete?: () => void,
 ) {
   const sessionId = localStorage.getItem('sessionId');
   const accessToken = localStorage.getItem('access');
+  if (!sessionId) throw new Error('세션 ID가 없습니다.');
+  if (!accessToken) throw new Error('액세스 토큰이 없습니다.');
 
-  if (!sessionId) throw new Error('세션 ID가 없습니다. 먼저 세션을 생성해주세요.');
-  if (!accessToken) throw new Error('액세스 토큰이 없습니다. 로그인 후 다시 시도해주세요.');
-
-  fetch(`${API_BASE_URL}/chat/stream?sessionId=${encodeURIComponent(sessionId)}`, {
+  fetch(`${API_BASE_URL}/chat/stream?sessionId=${sessionId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
-      'Authorization': `Bearer ${accessToken}`,
+      'Authorization': `Bearer ${accessToken}`
     },
     body: JSON.stringify({ question })
   })
     .then(res => {
-      if (!res.ok) throw new Error(`스트리밍 요청 실패: ${res.statusText}`);
+      if (!res.ok) throw new Error(res.statusText);
       const reader = res.body!.getReader();
-      const decoder = new TextDecoder('utf-8');
+      const decoder = new TextDecoder();
       let buffer = '';
 
       function read() {
         reader.read().then(({ done, value }) => {
           if (done) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            onComplete && onComplete();
+            onComplete?.();
             return;
           }
           buffer += decoder.decode(value, { stream: true });
-          // SSE 형식(data: ...) 파싱
           const lines = buffer.split('\n');
           buffer = lines.pop()!;
 
           for (const line of lines) {
-            if (line.startsWith('data:')) {
-              const payload = line.replace(/^data:\s*/, '');
-              if (payload === '[DONE]') {
-                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                onComplete && onComplete();
-                return;
-              }
-              let chunk: { answer?: string;[key: string]: unknown } | string;
-              try {
-                chunk = JSON.parse(payload);
-              } catch {
-                // JSON 이 아니면 그대로 텍스트로
-                chunk = payload;
-              }
-              if (typeof chunk === 'object' && 'answer' in chunk) {
-                onMessage(chunk.answer!);
-              } else if (typeof chunk === 'string') {
-                onMessage(chunk);
-              }
+            if (!line.startsWith('data:')) continue;
+            const raw = line.substring(5);       // data: 이후부터 그대로
+            if (raw === '[DONE]') {
+              onComplete?.();
+              return;
             }
+            let chunk: string;
+            try {
+              const parsed = JSON.parse(raw);
+              chunk = parsed.answer ?? raw;
+            } catch {
+              chunk = raw;
+            }
+            onMessage(chunk);                    // ← React 상태 업데이트는 여기서 하지 않음
           }
           read();
-        }).catch(err => {
-          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-          onError && onError(err);
-        });
+        }).catch(err => onError?.(err));
       }
 
       read();
     })
-    .catch(err => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      onError && onError(err);
-    });
+    .catch(err => onError?.(err));
 }
