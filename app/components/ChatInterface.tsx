@@ -5,7 +5,8 @@ import { Send, X } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import TypingIndicator from "./TypingIndicator";
 import { cn } from "../lib/utils";
-import { streamChatResponse, login } from "../api/chatstream";
+import { streamChatResponse } from "../api/chatstream";
+import { login } from "../api/auth";
 
 interface Message {
   content: string;
