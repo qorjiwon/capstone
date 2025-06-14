@@ -117,7 +117,7 @@ const ChatInterface = ({ className }: { className?: string }) => {
       </div>
 
       {/* Messages container */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-3 space-y-4 bg-gray-50 scrollbar-hide">
 
         {messages.map((message, index) => {
           if (!message.isUser && message.content === '') {
