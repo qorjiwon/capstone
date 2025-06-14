@@ -21,8 +21,6 @@ export async function createChatSession(userId: string): Promise<string> {
   return sessionId;
 }
 
-
-// api/chatstream.ts
 export function streamChatResponse(
   question: string,
   onMessage: (chunk: string) => void,      // ← 변경: setMessages → onMessage
@@ -51,7 +49,7 @@ export function streamChatResponse(
       let stopped = false;
       let emptyCount = 0; // 연속 빈 data: 카운트
       let isFirstChunk = true; // 첫 청크 여부 체크
-
+      
       function read() {
         reader.read().then(({ done, value }) => {
           if (done || stopped) {
@@ -61,28 +59,30 @@ export function streamChatResponse(
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
           buffer = lines.pop()!;
-
+          
           for (const line of lines) {
             if (!line.startsWith('data:')) continue;
 
-            // 'data:' 뒤의 모든 문자를 그대로 가져오며, 공백도 포함
             const raw = line.slice('data:'.length);
 
-            // 빈 데이터는 줄바꿈으로 처리
+            if (raw === '[DONE]') {
+              stopped = true;
+              onComplete?.();
+              reader.cancel();
+              return;
+            }
+
             let chunk: string;
-            // raw가 '-'로 시작하면 항상 줄바꿈 추가
             if (raw.startsWith('-')) {
               chunk = '\n' + raw;
               emptyCount = 0;
             }
-            // raw가 숫자 하나로만 이루어졌으면 줄바꿈 추가
             else if (/^[0-9]$/.test(raw)) {
               chunk = '\n' + raw;
               emptyCount = 0;
             } else if (raw === '') {
               chunk = '\n';
             } else {
-              // 빈 데이터 두 번 연속 후에는 모든 다음 청크에 줄바꿈 프리픽스
               if (emptyCount >= 2) {
                 chunk = '\n' + raw;
                 emptyCount = 0;
@@ -102,14 +102,7 @@ export function streamChatResponse(
               isFirstChunk = false;
             }
 
-            if (raw === '[DONE]') {
-              stopped = true;
-              onComplete?.();
-              reader.cancel();
-              return;
-            }
-
-            onMessage(chunk);                    // ← React 상태 업데이트는 여기서 하지 않음
+            onMessage(chunk);
           }
           read();
         }).catch(err => onError?.(err));

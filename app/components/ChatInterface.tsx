@@ -101,7 +101,7 @@ const ChatInterface = ({ className }: { className?: string }) => {
   };
 
   return (
-    <div className={cn("flex flex-col h-[600px] w-full max-w-md rounded-xl overflow-hidden shadow-lg bg-white", className)}>
+    <div className={cn("flex flex-col h-[680px] w-full max-w-md rounded-xl overflow-hidden shadow-lg bg-white", className)}>
       {/* Chat header */}
       <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white flex justify-between items-center">
         <div>
